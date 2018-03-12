@@ -82,8 +82,8 @@ class Autoencoder:
         x_train_patches = x_train
         x_test_patches = x_test
 
-        x_train_patches_noise = Autoencoder.add_gaussian_noise(x_train_patches, mean=0, var=0.05)
-        x_test_patches_noise = Autoencoder.add_gaussian_noise(x_test_patches, mean=0, var=0.05)
+        x_train_patches_noise = Autoencoder.add_gaussian_noise(x_train_patches, mean=0, var=0.01)
+        x_test_patches_noise = Autoencoder.add_gaussian_noise(x_test_patches, mean=0, var=0.01)
 
         # Plot damaged patches with noise
         # fig = plt.figure(figsize=(9, 2))
@@ -153,7 +153,7 @@ class Autoencoder:
         size = 32
         images = self.test_patches[:-n]
 
-        noisy_images = Autoencoder.add_gaussian_noise(images, mean=0, var=0.05)
+        noisy_images = Autoencoder.add_gaussian_noise(images, mean=0, var=0.01)
 
         denoised_images = self.model.predict(noisy_images)
 
@@ -183,6 +183,8 @@ class Autoencoder:
 
         plt.show()
 
+        self.model.evaluate()
+
 
     @staticmethod
     def add_gaussian_noise( img, mean=0, var=0.01):
@@ -196,11 +198,11 @@ autoencoder = Autoencoder()
 
 
 # Load the saved model and predict images
-# autoencoder.load_model_from_file(filename="autoencoder-mnist-16x16.h5")
-# autoencoder.predict_full_size_images()
+autoencoder.load_model_from_file(filename="autoencoder-mnist-16x16.h5")
+autoencoder.predict_full_size_images()
 
 # Preprocess data and train
-autoencoder.load_and_preprocess_data()
-autoencoder.compile_model()
-autoencoder.train_model('autoencoder-cifar10-32x32')
-autoencoder.predict_full_size_images()
+# autoencoder.load_and_preprocess_data()
+# autoencoder.compile_model()
+# autoencoder.train_model('autoencoder-cifar10-32x32')
+# autoencoder.predict_full_size_images()
