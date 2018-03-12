@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 
 
 filepath = "D:\RISKO\SKOLA\V-semester\Bakalarka\Datasets\Renoir\Mi3_Aligned\Mi3_Aligned"
+
 RANDOM_SEED = 15
 MAX_PATCHES = 750
 PATCH_SIZE = (64, 64)
 
 DATA_FILE = "renoir-Mi3-aligned-64x64-CLEAN-NOISY.h5"
+
 
 def load_batches(path):
     batches = [f for f in os.listdir(path) if f.startswith("Batch")]
@@ -60,7 +62,6 @@ def plot_n_images(images):
     plt.show()
 
 
-
 def generate_data_from_images_loop():
     # Load batches
     batches = load_batches(filepath)
@@ -92,7 +93,6 @@ def load_data_from_file(pathname):
 
     plot_n_images(train_data[0][:10])
     plot_n_images(train_data[1][:10])
-
 
 
 # generate_data_from_images_loop()
