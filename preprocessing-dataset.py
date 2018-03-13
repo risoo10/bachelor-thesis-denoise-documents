@@ -3,6 +3,7 @@ import numpy as np
 import sys
 import h5py
 import cv2
+import sklearn.utils
 from sklearn.feature_extraction import image
 import matplotlib.pyplot as plt
 
@@ -69,7 +70,8 @@ def generate_data_from_images_loop():
     # Generate data
     print("Loading data ....")
     data = np.concatenate(np.array([np.array(extract_patches_for_batch(batch)) for batch in batches]), axis=1)
-    print("Data loaded", data.shape)
+    data[0], data[1] = sklearn.utils.shuffle(data[0], data[1], random_state=RANDOM_SEED)
+    print("Data loaded and shuffled", data.shape)
 
     # Save data to file
     train, validation, test = 0.65, 0.2, 0.15
@@ -95,5 +97,5 @@ def load_data_from_file(pathname):
     plot_n_images(train_data[1][:10])
 
 
-# generate_data_from_images_loop()
+generate_data_from_images_loop()
 load_data_from_file(DATA_FILE)
