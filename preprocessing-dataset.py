@@ -93,9 +93,9 @@ def load_data_from_file(pathname):
     validation_data = input_file["validation_data"][:]
     print("Loaded: Train |", train_data.shape, "Validation |", validation_data.shape)
 
-    plot_n_images(train_data[0][:10])
-    plot_n_images(train_data[1][:10])
+    plot_n_images(train_data[0][50:60])
+    plot_n_images(train_data[1][50:60])
 
 
-generate_data_from_images_loop()
+# generate_data_from_images_loop()
 load_data_from_file(DATA_FILE)
