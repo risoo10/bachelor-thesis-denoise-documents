@@ -1,6 +1,7 @@
 import keras
 import cv2
 import h5py
+from time import time
 
 import numpy as np
 from keras.datasets import cifar10
@@ -77,7 +78,7 @@ class Autoencoder:
                        batch_size=128,
                        shuffle=True,
                        validation_data=(self.test_noisy_patches, self.test_patches),
-                       callbacks=[TensorBoard(log_dir='/tmp/autoencoder')])
+                       callbacks=[TensorBoard(log_dir="logs/final/{}".format(time()), histogram_freq=1, write_graph=True, write_images=True)])
 
         self.model.save(filename)
 
