@@ -8,7 +8,7 @@ from keras.datasets import cifar10
 from keras.models import Model, load_model
 from keras.layers import Input, Dropout, Activation, BatchNormalization
 from keras.layers import MaxPooling2D, Conv2D, UpSampling2D
-from keras import initializers
+from keras import optimizers
 from keras.callbacks import TensorBoard
 from sklearn.feature_extraction import image
 import matplotlib.pyplot as plt
@@ -42,8 +42,6 @@ class Autoencoder:
 
     def compile_model(self):
 
-        init = initializers.VarianceScaling(scale=2.0, mode='fan_in', distribution='normal')
-
         # Convolutional autoencoder architecture
         input_img = Input(shape=(64, 64, 3))
 
@@ -56,9 +54,18 @@ class Autoencoder:
         # encode = BatchNormalization()(encode)
         encode = Activation('relu')(encode)
         encode = MaxPooling2D((2, 2), padding='same')(encode)
-        encode = Dropout(0.25)(encode)
+
+        encode = Conv2D(32, (3, 3), padding='same')(encode)
+        encode = Activation('relu')(encode)
+        encode = MaxPooling2D((2, 2), padding='same')(encode)
+        encode = Dropout(0.2)(encode)
 
         decode = Conv2D(32, (3, 3), padding='same')(encode)
+        # decode = BatchNormalization()(decode)
+        decode = Activation('relu')(decode)
+        decode = UpSampling2D((2, 2))(decode)
+
+        decode = Conv2D(32, (3, 3), padding='same')(decode)
         # decode = BatchNormalization()(decode)
         decode = Activation('relu')(decode)
         decode = UpSampling2D((2, 2))(decode)
@@ -67,27 +74,27 @@ class Autoencoder:
         # decode = BatchNormalization()(decode)
         decode = Activation('relu')(decode)
         decode = UpSampling2D((2, 2))(decode)
-        decode = Dropout(0.25)(decode)
+        decode = Dropout(0.2)(decode)
 
         decode = Conv2D(3, (3, 3), padding='same', activation='sigmoid')(decode)
 
         self.model = Model(input_img, decode)
-        self.compile = self.model.compile(optimizer='adam', loss='mse', metrics=["acc"])
+        self.compile = self.model.compile(optimizer=optimizers.adam(lr=0.0001), loss='mse', metrics=["acc"])
 
     def load_model_from_file(self, filename='autoencoder.h5'):
         print('Loading model from file ... ... ...')
         self.model = load_model(filename)
         print('Model successfully loaded from file.')
 
-    def train_model(self, filename='autoencoder.h5', epochs=100):
+    def train_model(self, filename='autoencoder', epochs=100):
         self.model.fit(self.train_noisy_patches, self.train_patches,
                        epochs=epochs,
                        batch_size=128,
                        shuffle=True,
                        validation_data=(self.test_noisy_patches, self.test_patches),
-                       callbacks=[TensorBoard(log_dir="logs/{}".format(time()), histogram_freq=0, write_graph=True)])
+                       callbacks=[TensorBoard(log_dir="logs/"+filename, histogram_freq=0, write_graph=True)])
 
-        self.model.save(filename)
+        self.model.save(filename+".h5")
 
     def predict_full_size_images(self):
 
@@ -120,7 +127,7 @@ class Autoencoder:
 
         self.model.evaluate(x=noisy_images, y=clean_images)
 
-    def add_gaussian_noise( img, mean=0, var=0.01):
+    def add_gaussian_noise(img, mean=0, var=0.01):
         # Add noise
         sigma = var ** 0.5
         result = img + np.random.normal(mean, sigma, img.shape)
@@ -142,5 +149,5 @@ autoencoder = Autoencoder()
 # Preprocess data and train
 autoencoder.load_and_preprocess_data(DATA_FILE)
 autoencoder.compile_model()
-autoencoder.train_model('conv-autoencoder-renoir-64x64-SMALL-DP-MSE.h5', epochs=150)
+autoencoder.train_model('models/conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR', epochs=150)
 autoencoder.predict_full_size_images()
