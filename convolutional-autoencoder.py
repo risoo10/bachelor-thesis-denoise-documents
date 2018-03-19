@@ -6,8 +6,9 @@ from time import time
 import numpy as np
 from keras.datasets import cifar10
 from keras.models import Model, load_model
-from keras.layers import Input, Dropout, Activation
+from keras.layers import Input, Dropout, Activation, BatchNormalization
 from keras.layers import MaxPooling2D, Conv2D, UpSampling2D
+from keras import initializers
 from keras.callbacks import TensorBoard
 from sklearn.feature_extraction import image
 import matplotlib.pyplot as plt
@@ -40,32 +41,38 @@ class Autoencoder:
         self.test_patches = validation_data[0]
 
     def compile_model(self):
+
+        init = initializers.VarianceScaling(scale=2.0, mode='fan_in', distribution='normal')
+
         # Convolutional autoencoder architecture
         input_img = Input(shape=(64, 64, 3))
 
-        encode = Conv2D(64, (3, 3), padding='same', activation='relu')(input_img)
+        encode = Conv2D(64, (3, 3), padding='same')(input_img)
+        # encode = BatchNormalization()(encode)
+        encode = Activation('relu')(encode)
         encode = MaxPooling2D((2, 2), padding='same')(encode)
 
-        encode = Conv2D(32, (3, 3), padding='same', activation='relu')(encode)
+        encode = Conv2D(32, (3, 3), padding='same')(encode)
+        # encode = BatchNormalization()(encode)
+        encode = Activation('relu')(encode)
         encode = MaxPooling2D((2, 2), padding='same')(encode)
+        encode = Dropout(0.25)(encode)
 
-        encode = Conv2D(16, (3, 3), padding='same', activation='relu')(encode)
-        encode = MaxPooling2D((2, 2), padding='same')(encode)
-
-        decode = Conv2D(16, (3, 3), padding='same', activation='relu')(encode)
+        decode = Conv2D(32, (3, 3), padding='same')(encode)
+        # decode = BatchNormalization()(decode)
+        decode = Activation('relu')(decode)
         decode = UpSampling2D((2, 2))(decode)
 
-        decode = Conv2D(32, (3, 3), padding='same', activation='relu')(decode)
+        decode = Conv2D(64, (3, 3), padding='same')(decode)
+        # decode = BatchNormalization()(decode)
+        decode = Activation('relu')(decode)
         decode = UpSampling2D((2, 2))(decode)
-
-        decode = Conv2D(64, (3, 3), padding='same', activation='relu')(decode)
-        decode = UpSampling2D((2, 2))(decode)
+        decode = Dropout(0.25)(decode)
 
         decode = Conv2D(3, (3, 3), padding='same', activation='sigmoid')(decode)
 
         self.model = Model(input_img, decode)
-
-        self.model.compile(optimizer='adam', loss='mean_squared_error')
+        self.compile = self.model.compile(optimizer='adam', loss='mse', metrics=["acc"])
 
     def load_model_from_file(self, filename='autoencoder.h5'):
         print('Loading model from file ... ... ...')
@@ -78,7 +85,7 @@ class Autoencoder:
                        batch_size=128,
                        shuffle=True,
                        validation_data=(self.test_noisy_patches, self.test_patches),
-                       callbacks=[TensorBoard(log_dir="logs/final/{}".format(time()), histogram_freq=1, write_graph=True, write_images=True)])
+                       callbacks=[TensorBoard(log_dir="logs/{}".format(time()), histogram_freq=0, write_graph=True)])
 
         self.model.save(filename)
 
@@ -111,9 +118,7 @@ class Autoencoder:
 
         plt.show()
 
-
-
-        self.model.evaluate()
+        self.model.evaluate(x=noisy_images, y=clean_images)
 
     def add_gaussian_noise( img, mean=0, var=0.01):
         # Add noise
@@ -131,11 +136,11 @@ autoencoder = Autoencoder()
 # autoencoder.predict_full_size_images()
 
 # Check available GPU
-from tensorflow.python.client import device_lib
-print(device_lib.list_local_devices())
+# from tensorflow.python.client import device_lib
+# print(device_lib.list_local_devices())
 
 # Preprocess data and train
 autoencoder.load_and_preprocess_data(DATA_FILE)
 autoencoder.compile_model()
-autoencoder.train_model('conv-autoencoder-renoir-64x64.h5', epochs=5)
+autoencoder.train_model('conv-autoencoder-renoir-64x64-SMALL-DP-MSE.h5', epochs=150)
 autoencoder.predict_full_size_images()
