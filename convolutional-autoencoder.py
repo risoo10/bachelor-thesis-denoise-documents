@@ -20,13 +20,12 @@ class Autoencoder:
     def __init__(self):
         self.model = 0
         self.train_noisy_patches = []
-        self.train_patches = []
+        self.train_residual_noise = []
         self.test_noisy_patches = []
-        self.test_patches = []
+        self.test_residual_noise = []
         self.batch_size = 128
 
-    def load_and_preprocess_data(self, filename):
-
+    def load_data(self, filename):
 
         # Input data from file
         print("Loading data from file >", filename, "....")
@@ -39,14 +38,16 @@ class Autoencoder:
         print("Loaded succesful ... |", train_data.shape, validation_data.shape)
 
         self.train_noisy_patches = train_data[1]
-        self.train_patches = train_data[0]
+        self.train_residual_noise = train_data[0]
         self.test_noisy_patches = validation_data[1]
-        self.test_patches = validation_data[0]
+        self.test_residual_noise = validation_data[0]
 
     def compile_model(self):
 
         # Convolutional autoencoder architecture
         input_img = Input(shape=(64, 64, 3))
+
+
 
         encode = Conv2D(64, (3, 3), padding='same')(input_img)
         # encode = BatchNormalization()(encode)
@@ -90,16 +91,16 @@ class Autoencoder:
         print('Model successfully loaded from file.')
 
     def train_model(self, filename='autoencoder', epochs=100):
-        self.model.fit(self.train_noisy_patches, self.train_patches,
+        self.model.fit(self.train_noisy_patches, self.train_residual_noise,
                        epochs=epochs,
                        batch_size=self.batch_size,
                        shuffle=True,
-                       validation_data=(self.test_noisy_patches, self.test_patches),
+                       validation_data=(self.test_noisy_patches, self.test_residual_noise),
                        callbacks=[TensorBoard(log_dir="logs/"+filename, histogram_freq=0, write_graph=True)])
 
         self.model.save("models/" + filename + ".h5")
 
-    def predict_full_size_images(self, filename):
+    def predict_test_images(self, filename):
 
         print("Loading data from file >", filename, "....")
         input = h5py.File(filename, "r")
