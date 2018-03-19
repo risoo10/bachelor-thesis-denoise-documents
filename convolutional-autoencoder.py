@@ -1,7 +1,9 @@
 import keras
 import cv2
 import h5py
+import sklearn
 from time import time
+import random
 
 import numpy as np
 from keras.datasets import cifar10
@@ -84,7 +86,7 @@ class Autoencoder:
 
     def load_model_from_file(self, filename='autoencoder.h5'):
         print('Loading model from file ... ... ...')
-        self.model = load_model(filename)
+        self.model = load_model("models/" + filename + ".h5")
         print('Model successfully loaded from file.')
 
     def train_model(self, filename='autoencoder', epochs=100):
@@ -95,16 +97,32 @@ class Autoencoder:
                        validation_data=(self.test_noisy_patches, self.test_patches),
                        callbacks=[TensorBoard(log_dir="logs/"+filename, histogram_freq=0, write_graph=True)])
 
-        self.model.save(filename+".h5")
+        self.model.save("models/" + filename + ".h5")
 
-    def predict_full_size_images(self):
+    def predict_full_size_images(self, filename):
 
-        n = 10
-        clean_images = self.test_patches[:-n]
-        noisy_images = self.test_noisy_patches[:-n]
+        print("Loading data from file >", filename, "....")
+        input = h5py.File(filename, "r")
+
+        test_data = input["test_data"][:]
+
+        input.close()
+
+        random_sed = random.randrange(0, 100)
+        test_data[0], test_data[1] = sklearn.utils.shuffle(test_data[0], test_data[1], random_state=random_sed)
+
+        clean_images = test_data[0][:100]
+        noisy_images = test_data[1][:100]
+
+
+
+        score = self.model.evaluate(noisy_images, clean_images, batch_size=10)
+        print(score)
+
         denoised_images = self.model.predict(noisy_images)
 
-        plt.figure(figsize=(20, 6))
+        n = 5
+        plt.figure(figsize=(18, 15))
         for i in range(n):
             # display original
             ax = plt.subplot(3, n, i+1)
@@ -126,7 +144,6 @@ class Autoencoder:
 
         plt.show()
 
-        self.model.evaluate(x=noisy_images, y=clean_images)
 
     def add_gaussian_noise(img, mean=0, var=0.01):
         # Add noise
@@ -140,15 +157,15 @@ autoencoder = Autoencoder()
 
 
 # Load the saved model and predict images
-# autoencoder.load_model_from_file(filename="autoencoder-mnist-16x16.h5")
-# autoencoder.predict_full_size_images()
+autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR")
+autoencoder.predict_full_size_images(DATA_FILE)
 
 # Check available GPU
 # from tensorflow.python.client import device_lib
 # print(device_lib.list_local_devices())
 
 # Preprocess data and train
-autoencoder.load_and_preprocess_data(DATA_FILE)
-autoencoder.compile_model()
-autoencoder.train_model('models/conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR', epochs=150)
-autoencoder.predict_full_size_images()
+# autoencoder.load_and_preprocess_data(DATA_FILE)
+# autoencoder.compile_model()
+# autoencoder.train_model('conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR', epochs=150)
+# autoencoder.predict_full_size_images()
