@@ -18,6 +18,7 @@ DATA_FILE = "renoir-Mi3-aligned-64x64-CLEAN-NOISY.h5"
 
 
 def load_batches(path):
+    # Get batches as list of folders
     batches = [f for f in os.listdir(path) if f.startswith("Batch")]
     batches = list(map(lambda x: {"folder": os.path.join(path, x), "noisy": [], "clean": ""}, batches))
     for batch in batches:

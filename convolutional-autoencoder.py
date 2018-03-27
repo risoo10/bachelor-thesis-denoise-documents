@@ -13,7 +13,9 @@ from keras.layers import MaxPooling2D, Conv2D, UpSampling2D
 from keras import optimizers
 from keras.callbacks import TensorBoard
 from sklearn.feature_extraction import image
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
+import extract_join_patches
 
 
 class Autoencoder:
@@ -46,8 +48,6 @@ class Autoencoder:
 
         # Convolutional autoencoder architecture
         input_img = Input(shape=(64, 64, 3))
-
-
 
         encode = Conv2D(64, (3, 3), padding='same')(input_img)
         # encode = BatchNormalization()(encode)
@@ -100,7 +100,53 @@ class Autoencoder:
 
         self.model.save("models/" + filename + ".h5")
 
-    def predict_test_images(self, filename):
+    def predict_from_image(self, image_name):
+        width, height, channels = 16, 12, 3
+        patch_size = 64
+        step = 32
+
+        # Load Image
+        test_image = cv2.imread(image_name)
+        height, width = test_image.shape[:2]
+        print("Loaded image | Shape:", test_image.shape)
+
+        # Resize and normalize image
+        width = int(width / (2 * step)) * step
+        height = int(height / (2 * step)) * step
+        test_image = cv2.resize(test_image, (width, height))
+        height, width = test_image.shape[:2]
+        test_image = test_image.astype("float32") / 255
+        print("Resized image | Shape:", test_image.shape)
+
+        # Extract patches
+        patches = extract_join_patches.split_to_patches(test_image, shape=(patch_size, patch_size, channels), step=step)
+        patch_count_ver, patch_count_hor = patches.shape[:2]
+
+        # Flatten to 1D array of patches
+        patches = patches.reshape((patch_count_ver * patch_count_hor, patches.shape[3], patches.shape[4], patches.shape[5]))
+
+        # Predict results
+        denoised_patches = self.model.predict(patches)
+
+        # Reshape back to 2D array of patches
+        denoised_patches = denoised_patches.reshape((patch_count_ver, patch_count_hor, patches.shape[1], patches.shape[2], patches.shape[3]))
+
+        # Reconstruct final image from patches
+        reconstructed = extract_join_patches.patch_together(denoised_patches, image_size=(width, height))
+
+        # Count Score
+        # score = ((test_image - reconstructed) ** 2).mean(axis=None)
+
+        # Plot noisy and denoised images
+        fig, axs = plt.subplots(ncols=2, figsize=(12, 6))
+        # fig.suptitle("MSE: " + str(score))
+        plt.subplot(1, 2, 1)
+        plt.imshow(cv2.cvtColor(test_image, cv2.COLOR_BGR2RGB))
+        plt.subplot(1, 2, 2)
+        plt.imshow(cv2.cvtColor(reconstructed.astype("float32"), cv2.COLOR_BGR2RGB))
+        plt.show()
+
+    def predict_test_patches(self, filename):
 
         print("Loading data from file >", filename, "....")
         input = h5py.File(filename, "r")
@@ -114,8 +160,6 @@ class Autoencoder:
 
         clean_images = test_data[0][:100]
         noisy_images = test_data[1][:100]
-
-
 
         score = self.model.evaluate(noisy_images, clean_images, batch_size=10)
         print(score)
@@ -159,7 +203,7 @@ autoencoder = Autoencoder()
 
 # Load the saved model and predict images
 autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR")
-autoencoder.predict_full_size_images(DATA_FILE)
+autoencoder.predict_from_image("test_images/001.bmp")
 
 # Check available GPU
 # from tensorflow.python.client import device_lib
@@ -169,4 +213,4 @@ autoencoder.predict_full_size_images(DATA_FILE)
 # autoencoder.load_and_preprocess_data(DATA_FILE)
 # autoencoder.compile_model()
 # autoencoder.train_model('conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR', epochs=150)
-# autoencoder.predict_full_size_images()
+# autoencoder.predict_test_patches()
