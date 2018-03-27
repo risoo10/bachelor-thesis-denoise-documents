@@ -100,26 +100,31 @@ class Autoencoder:
 
         self.model.save("models/" + filename + ".h5")
 
-    def predict_from_image(self, image_name):
+    def predict_from_image(self, noisy_file, clean_file):
         width, height, channels = 16, 12, 3
         patch_size = 64
         step = 32
 
-        # Load Image
-        test_image = cv2.imread(image_name)
-        height, width = test_image.shape[:2]
-        print("Loaded image | Shape:", test_image.shape)
+        # Load Images
+        test_image_noisy = cv2.imread(noisy_file)
+        test_image_clean = cv2.imread(clean_file)
+        height, width = test_image_noisy.shape[:2]
+        print("Loaded image | Shape:", test_image_noisy.shape)
 
-        # Resize and normalize image
+        # Resize images
         width = int(width / (2 * step)) * step
         height = int(height / (2 * step)) * step
-        test_image = cv2.resize(test_image, (width, height))
-        height, width = test_image.shape[:2]
-        test_image = test_image.astype("float32") / 255
-        print("Resized image | Shape:", test_image.shape)
+        test_image_noisy = cv2.resize(test_image_noisy, (width, height))
+        test_image_clean = cv2.resize(test_image_clean, (width, height))
+        height, width = test_image_noisy.shape[:2]
+        print("Resized image | Shape:", test_image_noisy.shape)
 
-        # Extract patches
-        patches = extract_join_patches.split_to_patches(test_image, shape=(patch_size, patch_size, channels), step=step)
+        # Normalize
+        test_image_noisy = test_image_noisy.astype("float32") / 255
+        test_image_clean = test_image_clean.astype("float32") / 255
+
+        # Extract noisy patches
+        patches = extract_join_patches.split_to_patches(test_image_noisy, shape=(patch_size, patch_size, channels), step=step)
         patch_count_ver, patch_count_hor = patches.shape[:2]
 
         # Flatten to 1D array of patches
@@ -134,15 +139,20 @@ class Autoencoder:
         # Reconstruct final image from patches
         reconstructed = extract_join_patches.patch_together(denoised_patches, image_size=(width, height))
 
-        # Count Score
-        # score = ((test_image - reconstructed) ** 2).mean(axis=None)
+        # Count Score using clean image
+        score = ((test_image_clean - reconstructed) ** 2).mean(axis=None)
 
-        # Plot noisy and denoised images
-        fig, axs = plt.subplots(ncols=2, figsize=(12, 6))
-        # fig.suptitle("MSE: " + str(score))
-        plt.subplot(1, 2, 1)
-        plt.imshow(cv2.cvtColor(test_image, cv2.COLOR_BGR2RGB))
-        plt.subplot(1, 2, 2)
+        # Plot clean, noisy and denoised image
+        fig, axs = plt.subplots(ncols=3, figsize=(16, 6))
+        fig.suptitle("Denoising images using CDAE (patches gradually aligned) | MSE: " + str(score))
+        ax = plt.subplot(1, 3, 1)
+        ax.set_title("Clean image")
+        plt.imshow(cv2.cvtColor(test_image_clean, cv2.COLOR_BGR2RGB))
+        ax = plt.subplot(1, 3, 2)
+        ax.set_title("Noisy image")
+        plt.imshow(cv2.cvtColor(test_image_noisy, cv2.COLOR_BGR2RGB))
+        ax = plt.subplot(1, 3, 3)
+        ax.set_title("Denoised image (aligned)")
         plt.imshow(cv2.cvtColor(reconstructed.astype("float32"), cv2.COLOR_BGR2RGB))
         plt.show()
 
@@ -203,7 +213,7 @@ autoencoder = Autoencoder()
 
 # Load the saved model and predict images
 autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR")
-autoencoder.predict_from_image("test_images/001.bmp")
+autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
 
 # Check available GPU
 # from tensorflow.python.client import device_lib

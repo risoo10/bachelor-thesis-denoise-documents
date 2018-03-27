@@ -28,7 +28,7 @@ def gradient_aligning(array, image_height, image_width, channels, patch_height, 
     # Initialize result
     result = np.zeros((image_height, image_width, channels))
     patch_mask = np.ones((patch_height, patch_width, channels))
-    image_mask = np.ones((patch_height, patch_width, channels))
+    image_ones = np.ones((patch_height, patch_width, channels))
 
     # Compute gradient
     gradient = np.linspace(0, 1, stride_hor).reshape((stride_hor, 1))
@@ -38,19 +38,34 @@ def gradient_aligning(array, image_height, image_width, channels, patch_height, 
     patch_gradient = np.ones((patch_width, channels))
     patch_gradient[:stride_hor] = gradient[:]
 
-    # Compute final mask
-    patch_mask *= patch_gradient.reshape((1, patch_width, channels))
-    patch_mask *= patch_gradient.reshape((patch_width, 1, channels))
-    image_mask -= patch_mask
+    # Compute final masks
+    horizontal_mask = patch_gradient.reshape((1, patch_width, channels))
+    vertical_mask = patch_gradient.reshape((patch_width, 1, channels))
+
+    horizontal_mask_inv = np.ones((1, patch_width, channels)) - horizontal_mask
+    vertical_mask_inv = np.ones((patch_width, 1, channels)) - vertical_mask
+
+    patch_mask *= horizontal_mask
+    patch_mask *= vertical_mask
+    image_mask = image_ones - patch_mask
 
     # Loop every patch
     for i, j in product(range(patch_sum_ver), range(patch_sum_hor)):
         patch = array[i, j]
-        if i == 0 or j == 0:
-            result[(i * stride_ver):(i * stride_ver) + patch_height, (j * stride_hor):(j * stride_hor) + patch_width] = patch
-            continue
-        result_window = result[(i * stride_ver):(i * stride_ver) + patch_height, (j * stride_hor):(j * stride_hor) + patch_width]
-        result[(i * stride_ver):(i * stride_ver) + patch_height, (j * stride_hor):(j * stride_hor) + patch_width] = result_window * image_mask + patch * patch_mask
+
+        # Slice of image for current patch
+        slice_ver = slice((i * stride_ver), (i * stride_ver) + patch_height)
+        slice_hor = slice((j * stride_hor), (j * stride_hor) + patch_width)
+
+        # Apply according to patch position
+        if i == 0 and j == 0:
+            result[slice_ver, slice_hor] = patch
+        elif i == 0:
+            result[slice_ver, slice_hor] = patch * horizontal_mask + result[slice_ver, slice_hor] * horizontal_mask_inv
+        elif j == 0:
+            result[slice_ver, slice_hor] = patch * vertical_mask + result[slice_ver, slice_hor] * vertical_mask_inv
+        else:
+            result[slice_ver, slice_hor] = patch * patch_mask + result[slice_ver, slice_hor] * image_mask
 
     return result
 
@@ -89,7 +104,7 @@ def test_extraction_reconstruction():
     width, height, channels = 16, 12, 3
     patch_size = 64
     step = 32
-    filename = "heart.jpg"
+    filename = "test_images/001.bmp"
 
     array = np.arange(width*height*channels).reshape((height, width, channels))
     image = cv2.imread(filename)
