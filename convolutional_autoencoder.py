@@ -10,13 +10,12 @@ from keras.datasets import cifar10
 from keras.models import Model, load_model
 from keras.layers import Input, Dropout, Activation, BatchNormalization
 from keras.layers import MaxPooling2D, Conv2D, UpSampling2D
-from keras import optimizers
-from keras.callbacks import TensorBoard
+from keras.losses import mean_squared_error
+from keras.callbacks import TensorBoard, LearningRateScheduler
 from sklearn.feature_extraction import image
-from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import extract_join_patches
-
+from keras_contrib.losses import dssim
 
 class Autoencoder:
     def __init__(self):
@@ -26,6 +25,7 @@ class Autoencoder:
         self.test_noisy_patches = []
         self.test_residual_noise = []
         self.batch_size = 128
+        self.loss = dssim.DSSIMObjective()
 
     def load_data(self, filename):
 
@@ -44,6 +44,11 @@ class Autoencoder:
         self.test_noisy_patches = validation_data[1]
         self.test_residual_noise = validation_data[0]
 
+    # My own loss function
+    def weighted_loss(self, y_true, y_pred):
+        dssim_loss = self.loss
+        return 0.5 * mean_squared_error(y_true, y_pred) + 0.5 * dssim_loss(y_true, y_pred)
+
     def compile_model(self):
 
         # Convolutional autoencoder architecture
@@ -54,22 +59,22 @@ class Autoencoder:
         encode = Activation('relu')(encode)
         encode = MaxPooling2D((2, 2), padding='same')(encode)
 
-        encode = Conv2D(32, (3, 3), padding='same')(encode)
+        encode = Conv2D(64, (3, 3), padding='same')(encode)
         # encode = BatchNormalization()(encode)
         encode = Activation('relu')(encode)
         encode = MaxPooling2D((2, 2), padding='same')(encode)
 
-        encode = Conv2D(32, (3, 3), padding='same')(encode)
+        encode = Conv2D(128, (3, 3), padding='same')(encode)
         encode = Activation('relu')(encode)
         encode = MaxPooling2D((2, 2), padding='same')(encode)
-        encode = Dropout(0.2)(encode)
+        encode = Dropout(0.5)(encode)
 
-        decode = Conv2D(32, (3, 3), padding='same')(encode)
+        decode = Conv2D(128, (3, 3), padding='same')(encode)
         # decode = BatchNormalization()(decode)
         decode = Activation('relu')(decode)
         decode = UpSampling2D((2, 2))(decode)
 
-        decode = Conv2D(32, (3, 3), padding='same')(decode)
+        decode = Conv2D(64, (3, 3), padding='same')(decode)
         # decode = BatchNormalization()(decode)
         decode = Activation('relu')(decode)
         decode = UpSampling2D((2, 2))(decode)
@@ -82,15 +87,17 @@ class Autoencoder:
 
         decode = Conv2D(3, (3, 3), padding='same', activation='sigmoid')(decode)
 
+
         self.model = Model(input_img, decode)
-        self.compile = self.model.compile(optimizer=optimizers.adam(lr=0.0001), loss='mse', metrics=["acc"])
+        self.compile = self.model.compile(optimizer="adam", loss=self.weighted_loss, metrics=["acc", "mse"])
 
     def load_model_from_file(self, filename='autoencoder.h5'):
         print('Loading model from file ... ... ...')
-        self.model = load_model("models/" + filename + ".h5")
+        self.model = load_model("models/" + filename + ".h5", custom_objects={'weighted_loss': self.weighted_loss})
         print('Model successfully loaded from file.')
 
     def train_model(self, filename='autoencoder', epochs=100):
+
         self.model.fit(self.train_noisy_patches, self.train_residual_noise,
                        epochs=epochs,
                        batch_size=self.batch_size,
@@ -212,7 +219,7 @@ autoencoder = Autoencoder()
 
 
 # Load the saved model and predict images
-autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR")
+autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-INVERSE-OWN-LOSS-FULL")
 autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
 
 # Check available GPU
@@ -220,7 +227,7 @@ autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_fil
 # print(device_lib.list_local_devices())
 
 # Preprocess data and train
-# autoencoder.load_and_preprocess_data(DATA_FILE)
+# autoencoder.load_data(DATA_FILE)
 # autoencoder.compile_model()
-# autoencoder.train_model('conv-autoencoder-renoir-64x64-MEDIUM-DP-MSE-SMLR', epochs=150)
+# autoencoder.train_model('conv-autoencoder-renoir-64x64-INVERSE-OWN-LOSS-FULL', epochs=150)
 # autoencoder.predict_test_patches()
