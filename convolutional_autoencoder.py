@@ -8,8 +8,8 @@ import random
 import numpy as np
 from keras.datasets import cifar10
 from keras.models import Model, load_model
-from keras.layers import Input, Dropout, Activation, BatchNormalization
-from keras.layers import MaxPooling2D, Conv2D, UpSampling2D
+from keras.layers import Input, Dropout, Activation, BatchNormalization, Add
+from keras.layers import MaxPooling2D, Conv2D, UpSampling2D, Conv2DTranspose
 from keras.losses import mean_squared_error
 from keras.callbacks import TensorBoard, LearningRateScheduler
 from sklearn.feature_extraction import image
@@ -49,7 +49,7 @@ class Autoencoder:
         dssim_loss = self.loss
         return 0.5 * mean_squared_error(y_true, y_pred) + 0.5 * dssim_loss(y_true, y_pred)
 
-    def compile_model(self):
+    def compile_deep_model(self):
 
         # Convolutional autoencoder architecture
         input_img = Input(shape=(64, 64, 3))
@@ -90,6 +90,36 @@ class Autoencoder:
 
         self.model = Model(input_img, decode)
         self.compile = self.model.compile(optimizer="adam", loss=self.weighted_loss, metrics=["acc", "mse"])
+
+    def compile_model(self):
+
+        # Convolutional / deconvolutional architecture
+        input_img = Input(shape=(64, 64, 3))
+
+        # Define depth of convolutional and deconvolutional layers
+        depth = 10
+
+        encoded_layers = []
+        encode = input_img
+
+        for i in range(4):
+            encode = Conv2D(16, (3, 3), padding='same')(encode)
+            encode = Conv2D(16, (3, 3), padding='same')(encode)
+            encoded_layers.append(encode)
+
+        decode = encode
+
+        for i in range(4):
+            decode = Conv2D(16, (3, 3), padding='same')(decode)
+            decode = Conv2D(16, (3, 3), padding='same')(decode)
+            decode = Add()([encoded_layers.pop(), decode])
+            decode = Activation('relu')(decode)
+
+        decode = Conv2D(3, (3, 3), padding='same', activation='sigmoid')(decode)
+
+        self.model = Model(input_img, decode)
+        self.compile = self.model.compile(optimizer=keras.optimizers.adam(lr=0.001), loss=self.weighted_loss, metrics=["acc", "mse"])
+
 
     def load_model_from_file(self, filename='autoencoder.h5'):
         print('Loading model from file ... ... ...')
@@ -151,7 +181,7 @@ class Autoencoder:
 
         # Plot clean, noisy and denoised image
         fig, axs = plt.subplots(ncols=3, figsize=(16, 6))
-        fig.suptitle("Denoising images using CDAE (patches gradually aligned) | MSE: " + str(score))
+        fig.suptitle("Denoising images using Conv / Deconv (patches gradually aligned) | MSE: " + str(score))
         ax = plt.subplot(1, 3, 1)
         ax.set_title("Clean image")
         plt.imshow(cv2.cvtColor(test_image_clean, cv2.COLOR_BGR2RGB))
@@ -219,15 +249,15 @@ autoencoder = Autoencoder()
 
 
 # Load the saved model and predict images
-autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-INVERSE-OWN-LOSS-FULL")
-autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
+# autoencoder.load_model_from_file(filename="conv-deconv-renoir-64x64-BASE-32F-D10")
+# autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
 
 # Check available GPU
 # from tensorflow.python.client import device_lib
 # print(device_lib.list_local_devices())
 
 # Preprocess data and train
-# autoencoder.load_data(DATA_FILE)
-# autoencoder.compile_model()
-# autoencoder.train_model('conv-autoencoder-renoir-64x64-INVERSE-OWN-LOSS-FULL', epochs=150)
-# autoencoder.predict_test_patches()
+autoencoder.load_data(DATA_FILE)
+autoencoder.compile_model()
+autoencoder.train_model('conv-deconv-renoir-64x64-CON-16F-8D', epochs=50)
+autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
