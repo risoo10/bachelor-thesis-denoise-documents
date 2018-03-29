@@ -177,19 +177,20 @@ class Autoencoder:
         reconstructed = extract_join_patches.patch_together(denoised_patches, image_size=(width, height))
 
         # Count Score using clean image
-        score = ((test_image_clean - reconstructed) ** 2).mean(axis=None)
+        denoised_mse = ((test_image_clean - reconstructed) ** 2).mean(axis=None)
+        noisy_mse = ((test_image_clean - test_image_noisy) ** 2).mean(axis=None)
 
         # Plot clean, noisy and denoised image
         fig, axs = plt.subplots(ncols=3, figsize=(16, 6))
-        fig.suptitle("Denoising images using Conv / Deconv (patches gradually aligned) | MSE: " + str(score))
+        fig.suptitle("Denoising images using Convolutional Autoencoder (patches gradually aligned)")
         ax = plt.subplot(1, 3, 1)
         ax.set_title("Clean image")
         plt.imshow(cv2.cvtColor(test_image_clean, cv2.COLOR_BGR2RGB))
         ax = plt.subplot(1, 3, 2)
-        ax.set_title("Noisy image")
+        ax.set_title("Noisy image \n MSE: " + str(noisy_mse))
         plt.imshow(cv2.cvtColor(test_image_noisy, cv2.COLOR_BGR2RGB))
         ax = plt.subplot(1, 3, 3)
-        ax.set_title("Denoised image (aligned)")
+        ax.set_title("Denoised image (aligned) \n MSE: " + str(denoised_mse))
         plt.imshow(cv2.cvtColor(reconstructed.astype("float32"), cv2.COLOR_BGR2RGB))
         plt.show()
 
@@ -249,15 +250,15 @@ autoencoder = Autoencoder()
 
 
 # Load the saved model and predict images
-# autoencoder.load_model_from_file(filename="conv-deconv-renoir-64x64-BASE-32F-D10")
-# autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
+autoencoder.load_model_from_file(filename="conv-autoencoder-renoir-64x64-INVERSE-OWN-LOSS-FULL")
+autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
 
 # Check available GPU
 # from tensorflow.python.client import device_lib
 # print(device_lib.list_local_devices())
 
 # Preprocess data and train
-autoencoder.load_data(DATA_FILE)
-autoencoder.compile_model()
-autoencoder.train_model('conv-deconv-renoir-64x64-CON-16F-8D', epochs=50)
-autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
+# autoencoder.load_data(DATA_FILE)
+# autoencoder.compile_model()
+# autoencoder.train_model('conv-deconv-renoir-64x64-CON-16F-8D', epochs=50)
+# autoencoder.predict_from_image(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
