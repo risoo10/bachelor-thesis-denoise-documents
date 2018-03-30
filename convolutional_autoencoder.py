@@ -102,20 +102,26 @@ class Autoencoder:
         encoded_layers = []
         encode = input_img
 
-        for i in range(4):
+        for i in range(9):
             encode = Conv2D(16, (3, 3), padding='same')(encode)
             encode = Conv2D(16, (3, 3), padding='same')(encode)
+            # encode = BatchNormalization()(encode)
             encoded_layers.append(encode)
+
+        encode = Conv2D(16, (3, 3), padding='same')(encode)
+        encode = Conv2D(16, (3, 3), padding='same')(encode)
 
         decode = encode
 
-        for i in range(4):
-            decode = Conv2D(16, (3, 3), padding='same')(decode)
-            decode = Conv2D(16, (3, 3), padding='same')(decode)
+        for i in range(9):
+            decode = Conv2DTranspose(16, (3, 3), padding='same')(decode)
+            decode = Conv2DTranspose(16, (3, 3), padding='same')(decode)
+            # decode = BatchNormalization()(decode)
             decode = Add()([encoded_layers.pop(), decode])
             decode = Activation('relu')(decode)
 
-        decode = Conv2D(3, (3, 3), padding='same', activation='sigmoid')(decode)
+        decode = Conv2DTranspose(16, (3, 3), padding='same')(decode)
+        decode = Conv2DTranspose(3, (3, 3), padding='same', activation='sigmoid')(decode)
 
         self.model = Model(input_img, decode)
         self.compile = self.model.compile(optimizer=keras.optimizers.adam(lr=0.001), loss=self.weighted_loss, metrics=["acc", "mse"])
@@ -298,7 +304,7 @@ autoencoder = Autoencoder()
 
 
 # Load the saved model and predict images
-autoencoder.load_model_from_file(filename="conv-deconv-renoir-64x64-CON-16F-8D")
+autoencoder.load_model_from_file(filename="conv-deconv-renoir-64x64-CON-16F-TRANSP-8D")
 autoencoder.denoise_image(noisy_file="test_images/iPhone/01.JPG")
 
 # Check available GPU
@@ -308,5 +314,5 @@ autoencoder.denoise_image(noisy_file="test_images/iPhone/01.JPG")
 # Preprocess data and train
 # autoencoder.load_data(DATA_FILE)
 # autoencoder.compile_model()
-# autoencoder.train_model('conv-deconv-renoir-64x64-CON-16F-8D', epochs=50)
+# autoencoder.train_model('conv-deconv-renoir-64x64-CON-16F-TRANSP-8D', epochs=150)
 # autoencoder.test_on_images(clean_file="test_images/001-clean.jpg", noisy_file="test_images/001-noisy.jpg")
